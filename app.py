@@ -41,7 +41,7 @@ def get_movie_id_by_movie_name(movie_name):
 
 
 #tmdb api functions
-def insert_movie_by_movie_info(movie_info,language="en"):#main function for insert movies with all details (actors,trailer,poster)
+def insert_movie_by_movie_info(movie_info):#main function for insert movies with all details (actors,trailer,poster)
     movie_tmdb_id = str(movie_info['id'])
     movie_title = movie_info['title']
     movie_tmdb_genre_id = movie_info['genre_ids'][0]
@@ -63,7 +63,7 @@ def insert_movie_by_movie_info(movie_info,language="en"):#main function for inse
     db.session.add(new_poster)
     db.session.commit()
     # insert the actors of the movie for Actor table and Movie-Actor table
-    crew = requests.get("https://api.themoviedb.org/3/movie/" + str(movie_tmdb_id) + "/credits?api_key=" + API_KEY+"&language="+language).json()
+    crew = requests.get("https://api.themoviedb.org/3/movie/" + str(movie_tmdb_id) + "/credits?api_key=" + API_KEY).json()
     actors_list = crew['cast']
     for x in range(5):
         current_actor_name = actors_list[x]['name']
@@ -77,35 +77,29 @@ def insert_movie_by_movie_info(movie_info,language="en"):#main function for inse
         db.session.add(new_actor_movie)
         db.session.commit()
     # insert trailer for Trailers table
-    search_trailer = requests.get("https://api.themoviedb.org/3/movie/"+movie_tmdb_id+"/videos?api_key=" + API_KEY+"&language="+language).json()
+    search_trailer = requests.get("https://api.themoviedb.org/3/movie/"+movie_tmdb_id+"/videos?api_key=" + API_KEY).json()
     search_trailer_results = search_trailer['results']
     if not search_trailer_results:
         print("no trailer")
         return
-    for current_trailer in search_trailer_results:
-        trailer_site = current_trailer['site']
-        trailer_key = current_trailer['key']
-        if trailer_site == "YouTube":
+    for current_video in search_trailer_results:
+        trailer_site = current_video['site']
+        trailer_key = current_video['key']
+        video_type=current_video['type']
+        if trailer_site == "YouTube" and video_type=="Trailer":
             youtube_link = "https://www.youtube.com/embed/" + trailer_key
             new_trailer = Trailers(trailerLink=youtube_link, movieId=movie_id)
             db.session.add(new_trailer)
             db.session.commit()
             break
-def insert_movie_by_movie_name(movie_name,language="en"):
-    search_movie = requests.get("https://api.themoviedb.org/3/search/movie?api_key=" + API_KEY + "&query="+movie_name+"&language="+language).json()
+def insert_movie_by_movie_name(movie_name):
+    search_movie = requests.get("https://api.themoviedb.org/3/search/movie?api_key=" + API_KEY + "&query="+movie_name).json()
     search_movie_results = search_movie['results']
     if not search_movie_results:
         print("no results")
         return False
-    movie_info=0
-    for current_movie in search_movie_results:
-        if current_movie['original_language']==language:
-                movie_info=current_movie
-                break
-    if movie_info==0:
-        print("no movie with this lang")
-        return False
-    return insert_movie_by_movie_info(movie_info,language)
+    movie_info=search_movie_results[0]
+    return insert_movie_by_movie_info(movie_info)
 def check_genreId_by_genreAPI_id(genre_api_id):
     genre_by_genreAPI_id=Genre.query.filter_by(genreAPIId=genre_api_id).first()
     if not genre_by_genreAPI_id:
@@ -113,6 +107,25 @@ def check_genreId_by_genreAPI_id(genre_api_id):
         return
     genre_id=genre_by_genreAPI_id.genreId
     return genre_id
+def update_current_popular_movies():
+    db.session.query(Popular_Movies).delete()
+    db.session.commit()
+    search_popular_movies = requests.get("https://api.themoviedb.org/3/movie/popular?api_key=" + API_KEY).json()
+    popular_movies_results = search_popular_movies['results']
+    if not popular_movies_results:
+        return False
+    counter=0
+    for current_movie in popular_movies_results:
+        counter=counter+1
+        movie_info =current_movie
+        insert_movie_by_movie_info(movie_info)
+        movie_by_movieName=Movies.query.filter_by(movieName= movie_info['title']).first()
+        current_movie_id=movie_by_movieName.movieId
+        current_popular_movie=Popular_Movies(movieId=current_movie_id)
+        db.session.add(current_popular_movie)
+        db.session.commit()
+        if(counter==3):
+            return True
 
 
 class Users(db.Model):
@@ -168,7 +181,9 @@ class Trailers(db.Model):
     trailerLink = db.Column(db.String(100), nullable=False)
     movieId = db.Column(db.Integer, nullable=False)
 
-
+class Popular_Movies(db.Model):
+    key = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    movieId = db.Column(db.Integer, nullable=False)
 
 
 rating_put_args=reqparse.RequestParser()
@@ -190,11 +205,11 @@ class ratings(Resource):
                 'userScore': False
             }
         avg=average(ratings_by_movieId)
-        ratings_by_userId=Rating.query.filter_by(userId=user_id,movieId=movie_id).first()
-        if not ratings_by_userId:
+        rating_by_userId=Rating.query.filter_by(userId=user_id,movieId=movie_id).first()
+        if not rating_by_userId:
             score_by_user=False
         else:
-            score_by_user=ratings_by_userId.score
+            score_by_user=rating_by_userId.score
         info={
             'average':avg,
             'userScore':score_by_user
@@ -266,6 +281,9 @@ class movie_info(Resource):
         if movie_by_movieId == None:
             return False
         movie_title = movie_by_movieId.movieName
+        genre_id=movie_by_movieId.genreId
+        genre_by_genreId=Genre.query.filter_by(genreId=genre_id).first()
+        genre_name=genre_by_genreId.genreName
         all_actors_in_movie = []
         actors_by_movieId = Actor_Movies.query.filter_by(movieId=movie_id).all()
         if not actors_by_movieId:
@@ -292,7 +310,8 @@ class movie_info(Resource):
             'description':movie_description,
             'actors':all_actors_in_movie,
             'poster':poster_link,
-            'trailer':trailer_link
+            'trailer':trailer_link,
+            'genre':genre_name
         }
         return all_movie_info
 
@@ -310,8 +329,15 @@ class login(Resource):
             return response
 
 
-
-
+class popular_movies(Resource):
+    def get(self):
+        popular_movies_list=Popular_Movies.query.all()
+        movies_id_list=[]
+        if not popular_movies_list:
+            return False
+        for current_movie in popular_movies_list:
+            movies_id_list.append(current_movie.movieId)
+        return movies_id_list
 
 api.add_resource(ratings,"/rating/<int:movie_id>/<int:user_id>")
 api.add_resource(posters,"/poster/<int:movie_id>")
@@ -320,6 +346,7 @@ api.add_resource(search_movie,"/search/<string:movie_name>")
 api.add_resource(register,"/register")
 api.add_resource(movie_info,"/movie_info/<int:movie_id>")
 api.add_resource(login,"/login/<string:username>/<string:password>")
+api.add_resource(popular_movies,"/popular_movies")
 
 
 
