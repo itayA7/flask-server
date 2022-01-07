@@ -362,7 +362,6 @@ api.add_resource(movie_info,"/movie_info/<int:movie_id>")
 api.add_resource(login,"/login/<string:username>/<string:password>")
 api.add_resource(popular_movies,"/popular_movies")
 
-insert_now_playing_movies()
 
 if __name__ == "__main__":
     app.run(debug=True,host='0.0.0.0')
