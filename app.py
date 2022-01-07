@@ -46,6 +46,15 @@ def get_actorId_by_actorName(actor_name):
     actor_id = actor_by_actorName.actorId
     return actor_id
 
+def insert_now_playing_movies():
+    search_latest_movies=requests.get("https://api.themoviedb.org/3/movie/now_playing?api_key="+API_KEY).json()
+    latest_movies_results=search_latest_movies['results']
+    if not latest_movies_results:
+        return
+    for current_movie_info in latest_movies_results:
+        insert_movie_by_movie_info(current_movie_info)
+
+
 #tmdb api functions
 def insert_movie_by_movie_info(movie_info):#main function for insert movies with all details (actors,trailer,poster)
     movie_tmdb_id = str(movie_info['id'])
@@ -353,7 +362,7 @@ api.add_resource(movie_info,"/movie_info/<int:movie_id>")
 api.add_resource(login,"/login/<string:username>/<string:password>")
 api.add_resource(popular_movies,"/popular_movies")
 
-
+insert_now_playing_movies()
 
 if __name__ == "__main__":
     app.run(debug=True,host='0.0.0.0')
