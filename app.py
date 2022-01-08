@@ -239,8 +239,13 @@ class ratings(Resource):
         else:
             rating_comment=args['comment']
             new_rating=Rating(userId=user_id,score=score,movieId=movie_id,comment=rating_comment)
-        db.session.add(new_rating)
-        db.session.commit()
+        already_voted=Rating.query.filter_by(userId=user_id,movieId=movie_id).first()
+        if already_voted!=None:
+            already_voted.score=score
+            db.session.commit()
+        else:
+            db.session.add(new_rating)
+            db.session.commit()
         return True
 
 class posters(Resource):
