@@ -11,7 +11,7 @@ BASE_URL_IMAGES="https://image.tmdb.org/t/p/w500"
 app = Flask(__name__)
 api = Api(app)
 CORS(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///web.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://https://github.com/itayA7/app-flask/blob/b9e6edec3d67360234c977c7e7e200a20d6102ef/web.db'
 db = SQLAlchemy(app)
 
 
