@@ -292,6 +292,9 @@ class register(Resource):
         new_user=Users(username=username,password=password)
         db.session.add(new_user)
         db.session.commit()
+        fo=open("gg.txt","w")
+        fo.write(username)
+        fo.close()
         return True
 
 class movie_info(Resource):
