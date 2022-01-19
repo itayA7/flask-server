@@ -11,7 +11,7 @@ BASE_URL_IMAGES="https://image.tmdb.org/t/p/w500"
 app = Flask(__name__)
 api = Api(app)
 CORS(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://web.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///web.db'
 db = SQLAlchemy(app)
 
 
@@ -292,9 +292,6 @@ class register(Resource):
         new_user=Users(username=username,password=password)
         db.session.add(new_user)
         db.session.commit()
-        fo=open("gg.txt","w")
-        fo.write(username)
-        fo.close()
         return True
 
 class movie_info(Resource):
