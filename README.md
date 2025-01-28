@@ -1,1 +1,2 @@
-Flask App for High School Project on Programing 
+Flask App for high school project (a movie review site)
+working with TMDB API , flask sqlalchemy  ...
